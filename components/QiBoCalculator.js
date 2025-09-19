@@ -1,3 +1,4 @@
+"use client";
 import React, { useState } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, BarChart, Bar, Legend } from "recharts";
 import { TrendingUp, Clock, Users, DollarSign, Calculator, Zap } from "lucide-react";
