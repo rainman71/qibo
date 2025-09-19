@@ -390,7 +390,7 @@ function MetricsGrid({ baselinePatients, qiboPatientsSameHours, hoursSaved, delt
     },
     {
       label: "Annual ROI",
-      value: deltaAnnualNet >= 0 ? `+${Math.abs(deltaAnnualNet).toLocaleString()}` : `-${Math.abs(deltaAnnualNet).toLocaleString()}`,
+      value: deltaAnnualNet >= 0 ? `$ +${Math.abs(deltaAnnualNet).toLocaleString()}` : `$ -${Math.abs(deltaAnnualNet).toLocaleString()}`,
       unit: "per year",
       description: "Net revenue after QiBo costs",
       icon: <TrendingUp className="h-5 w-5" />,
