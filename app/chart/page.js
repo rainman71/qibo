@@ -1,5 +1,3 @@
-"use client";
-
 // app/chart/page.js
 export default function ChartPage() {
   return (
