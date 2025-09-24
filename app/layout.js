@@ -1,14 +1,14 @@
-import './globals.css'
-
-export const metadata = {
-  title: 'QiBo ROI Calculator',
-  description: 'Calculate your ROI with QiBo intelligent documentation',
-}
+// app/layout.js
+import "./globals.css";
+import ProductTour from "../components/ProductTour";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ProductTour />
+      </body>
     </html>
-  )
+  );
 }
