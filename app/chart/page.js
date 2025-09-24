@@ -1,4 +1,6 @@
 // app/chart/page.js
+import RestartTourButton from "../../components/RestartTourButton";  // <- move import to top
+
 export default function ChartPage() {
   return (
     <main className="p-8 space-y-6">
@@ -23,9 +25,7 @@ export default function ChartPage() {
       </div>
 
       <a href="/" className="inline-block px-3 py-2 rounded border">Back to Menu</a>
-      import RestartTourButton from "../../components/RestartTourButton";
-      // ...
-      <RestartTourButton />
+      <RestartTourButton />  {/* <-- use it here */}
     </main>
   );
 }
