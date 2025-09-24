@@ -23,9 +23,9 @@ export default function ChartPage() {
       </div>
 
       <a href="/" className="inline-block px-3 py-2 rounded border">Back to Menu</a>
-      <button onClick={() => window.restartTour?.()} className="ml-3 px-3 py-2 rounded border">
-        Restart Tour
-      </button>
+      import RestartTourButton from "../../components/RestartTourButton";
+      // ...
+      <RestartTourButton />
     </main>
   );
 }
