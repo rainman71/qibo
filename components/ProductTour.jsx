@@ -12,14 +12,13 @@ export default function ProductTour() {
   const router = useRouter();
   const [run, setRun] = useState(false);
   const [step, setStep] = useState(0);
+
+  // Track which routes have already shown the tour in THIS visit
+  const shownThisVisit = useRef(new Set()); // e.g., "/avatar", "/intake", "/chart"
   const startedRef = useRef(false);
 
-  // Define steps per route (always show)
   const rawSteps = useMemo(() => {
     const map = {
-      "/": [
-        { target: "body", content: "Tour is mounted. Pick a demo." } // sanity step
-      ],
       "/avatar": [
         { target: '[data-tour="avatar-male"]',   content: "Pick a starting avatar.", placement: "bottom" },
         { target: '[data-tour="avatar-female"]', content: "Or choose this one.",     placement: "bottom" },
@@ -41,7 +40,6 @@ export default function ProductTour() {
     return map[pathname] ?? [];
   }, [pathname]);
 
-  // Normalize steps for Joyride (keep ROUTE steps as sentinels)
   const steps = useMemo(
     () =>
       rawSteps.map((s) =>
@@ -52,16 +50,17 @@ export default function ProductTour() {
     [rawSteps]
   );
 
-  // Reset out-of-bounds step when route changes
+  // Reset on route change
   useEffect(() => {
-    if (step >= rawSteps.length) setStep(0);
-    startedRef.current = false; // allow re-starting after route change
+    startedRef.current = false;
     setRun(false);
+    if (step >= rawSteps.length) setStep(0);
   }, [rawSteps.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Start when targets are present (or current step is a ROUTE hop)
+  // Start once per route per navigation (unless user hits Restart)
   useEffect(() => {
     if (steps.length === 0 || startedRef.current) return;
+    if (shownThisVisit.current.has(pathname)) return; // already shown on this route
 
     const current = rawSteps[step];
     const isRouteHop = current?.target?.startsWith?.("ROUTE:");
@@ -69,10 +68,10 @@ export default function ProductTour() {
     if (isRouteHop) {
       setRun(true);
       startedRef.current = true;
+      shownThisVisit.current.add(pathname);
       return;
     }
 
-    // Check all non-ROUTE targets exist
     const ready = steps.every((s) => {
       const sel = s.target;
       if (!sel || sel.startsWith?.("ROUTE:")) return true;
@@ -82,8 +81,9 @@ export default function ProductTour() {
     if (ready) {
       setRun(true);
       startedRef.current = true;
+      shownThisVisit.current.add(pathname);
     }
-  }, [rawSteps, step, steps]);
+  }, [pathname, rawSteps, step, steps]);
 
   const callback = (data) => {
     const { action, index, status, type } = data;
@@ -103,7 +103,7 @@ export default function ProductTour() {
         const to = nextRaw.target.replace("ROUTE:", "");
         setRun(false);
         setStep(nextIndex);
-        startedRef.current = false; // allow re-start on next page
+        startedRef.current = false;
         router.push(to);
         return;
       }
@@ -111,13 +111,14 @@ export default function ProductTour() {
     }
   };
 
-  // Expose a manual restart hook (for your Restart button)
+  // Manual restart hook (also clears the per-route gate)
   useEffect(() => {
     window.restartTour = () => {
+      shownThisVisit.current.delete(pathname);
+      startedRef.current = false;
       setStep(0);
       setRun(false);
-      startedRef.current = false;
-      // start immediately if targets exist
+
       const ready = steps.every((s) => {
         const sel = s.target;
         if (!sel || sel.startsWith?.("ROUTE:")) return true;
@@ -126,9 +127,10 @@ export default function ProductTour() {
       if (ready) {
         setRun(true);
         startedRef.current = true;
+        shownThisVisit.current.add(pathname);
       }
     };
-  }, [steps]);
+  }, [pathname, steps]);
 
   if (!steps.length) return null;
 
