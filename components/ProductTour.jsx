@@ -221,17 +221,18 @@ export default function ProductTour() {
       styles={{
         options: {
           zIndex: 999999,
-          backgroundColor: "#0b0f1a",
-          textColor: "#e5e7eb",
-          arrowColor: "#0b0f1a",
+          backgroundColor: "var(--surface)",
+          textColor: "var(--text)",
+          arrowColor: "var(--surface)",
           overlayColor: "rgba(0,0,0,0.6)",
-          primaryColor: "#ad1123", // adjust to your ROI calculator accent
+          primaryColor: "var(--primary)",
         },
-        tooltipContainer: { color: "#e5e7eb" },
+        tooltipContainer: { color: "var(--text)" },
         tooltipContent: { maxWidth: 380 },
-        buttonNext: { backgroundColor: "#ad1123", color: "#fff" },
-        buttonBack: { color: "#9ca3af" },
+        buttonNext: { backgroundColor: "var(--primary)", color: "var(--primary-contrast)" },
+        buttonBack: { color: "var(--muted)" },
       }}
+
       locale={{ back: "Back", close: "Close", last: "Done", next: "Next", skip: "Skip" }}
       callback={callback}
     />
