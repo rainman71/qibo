@@ -12,12 +12,11 @@ export default function ProductTour() {
   const router = useRouter();
   const [run, setRun] = useState(false);
   const [step, setStep] = useState(0);
-  const shownThisVisit = useRef(new Set());    // show once per route per visit
+  const shownThisVisit = useRef(new Set());   // once per route per visit
   const startedRef = useRef(false);
-  const advanceCleanup = useRef<null | (() => void)>(null);
+  const advanceCleanup = useRef(null);        // JS version (no generic)
 
   // --- STEP DEFINITIONS ------------------------------------------------------
-  // Add `advanceOn` to require a real user action, and optional `spotlightClicks`.
   const rawSteps = useMemo(() => {
     const map = {
       "/avatar": [
@@ -88,27 +87,21 @@ export default function ProductTour() {
     return map[pathname] ?? [];
   }, [pathname]);
 
-  // Normalize for Joyride (keep ROUTE sentinels)
   const steps = useMemo(
     () =>
       rawSteps.map((s) =>
         s.target?.startsWith?.("ROUTE:")
           ? s
-          : {
-              ...s,
-              disableBeacon: true,
-              placement: s.placement ?? "auto",
-            }
+          : { ...s, disableBeacon: true, placement: s.placement ?? "auto" }
       ),
     [rawSteps]
   );
 
-  // Reset when route’s step list changes
+  // Reset on route change
   useEffect(() => {
     startedRef.current = false;
     setRun(false);
     if (step >= rawSteps.length) setStep(0);
-    // cleanup a previous advanceOn listener, if any
     if (advanceCleanup.current) {
       advanceCleanup.current();
       advanceCleanup.current = null;
@@ -154,13 +147,9 @@ export default function ProductTour() {
     const el = document.querySelector(cfg.selector);
     if (!el) return;
 
-    const handler = () => {
-      // emulate "next"
-      setStep((i) => Math.min(i + 1, rawSteps.length - 1));
-    };
+    const handler = () => setStep((i) => Math.min(i + 1, rawSteps.length - 1));
     el.addEventListener(cfg.event, handler, { once: true });
 
-    // store cleanup
     advanceCleanup.current = () => el.removeEventListener(cfg.event, handler);
     return () => {
       el.removeEventListener(cfg.event, handler);
@@ -171,7 +160,6 @@ export default function ProductTour() {
   const callback = (data) => {
     const { action, index, status, type } = data;
 
-    // If they try to skip/close, send them to root (or remove the button entirely; see Joyride props below)
     if (status === "skipped") {
       setRun(false);
       setStep(0);
@@ -190,7 +178,6 @@ export default function ProductTour() {
       const nextIndex = action === "prev" ? Math.max(0, index - 1) : index + 1;
       const nextRaw = rawSteps[nextIndex];
 
-      // Clean up any prior advanceOn listener before moving forward/back
       if (advanceCleanup.current) {
         advanceCleanup.current();
         advanceCleanup.current = null;
@@ -204,7 +191,6 @@ export default function ProductTour() {
         router.push(to);
         return;
       }
-
       setStep(nextIndex);
     }
   };
@@ -228,35 +214,25 @@ export default function ProductTour() {
       stepIndex={step}
       continuous
       showProgress
-      // --- BEHAVIOR: no Skip, no closing via overlay/Esc
       showSkipButton={false}
       disableOverlayClose
       disableCloseOnEsc
-      // Allow clicking highlighted elements when a step sets `spotlightClicks: true`
-      // (Joyride doesn't support per-step here; set true globally; gate with advanceOn when needed)
       spotlightClicks
-      // --- DARK THEME (tweak primaryColor to match your brand)
       styles={{
         options: {
           zIndex: 999999,
-          backgroundColor: "#0b0f1a", // tooltip background
+          backgroundColor: "#0b0f1a",
           textColor: "#e5e7eb",
           arrowColor: "#0b0f1a",
           overlayColor: "rgba(0,0,0,0.6)",
-          primaryColor: "#ad1123",    // <-- accent color (change to match ROI calculator)
+          primaryColor: "#ad1123", // adjust to your ROI calculator accent
         },
         tooltipContainer: { color: "#e5e7eb" },
         tooltipContent: { maxWidth: 380 },
         buttonNext: { backgroundColor: "#ad1123", color: "#fff" },
         buttonBack: { color: "#9ca3af" },
       }}
-      locale={{
-        back: "Back",
-        close: "Close",   // won't show since skip is hidden; kept for completeness
-        last: "Done",
-        next: "Next",
-        skip: "Skip",
-      }}
+      locale={{ back: "Back", close: "Close", last: "Done", next: "Next", skip: "Skip" }}
       callback={callback}
     />
   );
