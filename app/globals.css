@@ -1,3 +1,141 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* ==== QiBo Dark Theme – Global Tokens ==== */
+:root {
+  --bg: #0b0f1a;            /* page background */
+  --surface: #0f1524;       /* card / panels */
+  --text: #e5e7eb;          /* primary text */
+  --muted: #9ca3af;         /* secondary text */
+  --border: #1f2937;        /* subtle borders */
+  --primary: #ad1123;       /* ROI accent (QiBo red) */
+  --primary-contrast: #ffffff;
+  --focus: #ad1123;         /* focus ring color */
+  --link: #f87171;          /* links (lighter red) */
+  --link-hover: #fca5a5;
+}
+
+/* Prefer dark by default; keep system dark users happy */
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark; }
+}
+
+/* ==== Base Elements ==== */
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings get slightly brighter */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text);
+  margin: 0 0 .5rem;
+}
+
+/* Links */
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+a:hover, a:focus {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+/* Paragraphs, small text */
+p, small {
+  color: var(--text);
+}
+small, .muted { color: var(--muted); }
+
+/* ==== Containers / Cards ==== */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+/* If your markup uses "rounded" and "border", style them */
+.rounded { border-radius: 12px; }
+.border { border: 1px solid var(--border); }
+.p-4 { padding: 1rem; } /* minimal utility to match your examples */
+
+/* ==== Buttons ==== */
+button, .btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+button:hover, .btn:hover {
+  border-color: var(--primary);
+}
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast);
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ==== Inputs / Textareas / Selects ==== */
+input, textarea, select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus) 35%, transparent);
+}
+
+/* ==== Tables (if you have any) ==== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+th, td {
+  padding: .75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+thead th { color: var(--muted); font-weight: 600; }
+
+/* ==== Misc quality-of-life ==== */
+hr { border: 0; border-top: 1px solid var(--border); }
+code, pre {
+  background: #0a1020;
+  color: #d1d5db;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .25rem .5rem;
+}
+::-webkit-scrollbar { height: 12px; width: 12px; }
+::-webkit-scrollbar-thumb { background: #222a3a; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #2b3550; }
