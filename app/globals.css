@@ -81,9 +81,9 @@ button, .btn {
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-button:hover, .btn:hover {
+/*button:hover, .btn:hover {
   border-color: var(--primary);
-}
+}*/
 .btn-primary {
   background: var(--primary);
   border-color: var(--primary);
