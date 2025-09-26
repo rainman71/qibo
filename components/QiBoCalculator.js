@@ -11,6 +11,8 @@ import { TrendingUp, Clock, Users, DollarSign, Calculator, Zap } from "lucide-re
 // ===== Module-scope helpers =====
 const fmtNum = (n) => Math.round(Number(n)).toLocaleString();
 const fmtMoney = (n) => `$${Math.round(Number(n)).toLocaleString()}`;
+// Clamp helper (fixes ReferenceError: clamp is not defined)
+const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
 // Tooltip that adapts the X-axis label
 function SmartTooltip({ active, payload, label, money = false, darkMode = false, xFormatter }) {
@@ -43,6 +45,7 @@ function QiBoCalculator() {
     subscription: 149,
   });
   const [darkMode] = useState(true);
+  const [autoQiBo, setAutoQiBo] = useState(true); // default ON per your request
 
   const handleChange = (key) => (e) => {
     const val = parseFloat(e.target.value);
@@ -74,9 +77,18 @@ function QiBoCalculator() {
         border: "#e5e7eb",
       };
 
+  // ---- Auto QiBo minutes (linear: baseline 60→40, 30→25; clamp to 25..40) ----
+  const qiboMinutesAuto = useMemo(() => {
+    // influence window: baseline 30..60; output: 25..40 linearly
+    const b = clamp(baselineMinutes, 30, 60);
+    return clamp(0.5 * b + 10, 25, 40);
+  }, [baselineMinutes]);
+
+  const qiboMinutesEffective = autoQiBo ? qiboMinutesAuto : qiboMinutes;
+
   // ---- Core math ----
   const baselinePatientsPerHour = 60 / Math.max(1, baselineMinutes);
-  const qiboPatientsPerHour = 60 / Math.max(1, qiboMinutes);
+  const qiboPatientsPerHour = 60 / Math.max(1, qiboMinutesEffective);
 
   const baselinePatients = Math.round(baselinePatientsPerHour * hoursPerWeek);
   const qiboPatientsSameHours = Math.round(qiboPatientsPerHour * hoursPerWeek);
@@ -91,6 +103,7 @@ function QiBoCalculator() {
   // ---- Goal-driven view ----
   const WEEKS_PER_YEAR = 48;
   const [goals, setGoals] = useState({ seeMore: true, workLess: false, makeMore: true });
+  const [useDemandCap, setUseDemandCap] = useState(true);
   const [targets, setTargets] = useState({ extraPatients: 0, lessHours: 0 });
   const toggleGoalExclusive = (key) => {
     setGoals((g) => {
@@ -113,7 +126,7 @@ function QiBoCalculator() {
   const goalMode = goals.seeMore && !goals.workLess ? "patients" : goals.workLess && !goals.seeMore ? "hours" : "hours";
 
   // ----- Dynamic ranges so markers never clip -----
-  const HOURS_MIN = 10, HOURS_MAX = 40;
+  const HOURS_MIN = 10, HOURS_MAX = 40; // keep your current bounds
   const currentAnnualGross = Math.round(patientsPerWeek * rate * WEEKS_PER_YEAR);
   const hoursToMatchCurrent_Baseline = +(patientsPerWeek / Math.max(1e-6, baselinePatientsPerHour)).toFixed(1);
   const hoursToMatchCurrent_QiBo = +(patientsPerWeek / Math.max(1e-6, qiboPatientsPerHour)).toFixed(1);
@@ -133,7 +146,7 @@ function QiBoCalculator() {
   );
 
   const hoursRange = useMemo(() => {
-    const min = Math.max(0, xMin);
+    const min = Math.max(0, xMin); // honor your desire to allow starting at 0 if needed
     const max = Math.min(80, xMax);
     return Array.from({ length: max - min + 1 }, (_, i) => min + i);
   }, [xMin, xMax]);
@@ -161,29 +174,43 @@ function QiBoCalculator() {
 
   // Summary rows at 25/30/35/40 hrs — baseline vs QiBo
   const SUMMARY_HOURS = [25, 30, 35, 40];
+  const summaryHours = useMemo(() => {
+    const s = new Set(SUMMARY_HOURS);
+    s.add(Math.round(hoursPerWeek));
+    return Array.from(s).sort((a,b) => a - b);
+  }, [hoursPerWeek]);
   const summaryRows = useMemo(() => {
-    return SUMMARY_HOURS.map((h) => {
-      const baseP = baselinePatientsPerHour * h;
-      const qiboP = qiboPatientsPerHour * h;
-      const baseW = baseP * rate;
-      const qiboW = qiboP * rate; // gross
+    return summaryHours.map((h) => {
+      const baseCap = baselinePatientsPerHour * h;
+      const qiboCap = qiboPatientsPerHour * h;
+      const basePatients = useDemandCap ? Math.min(patientsPerWeek, baseCap) : baseCap;
+      const qiboPatients = useDemandCap ? Math.min(patientsPerWeek, qiboCap) : qiboCap;
+      const baseW = basePatients * rate;
+      const qiboW = qiboPatients * rate; // gross
       return {
         hours: h,
-        basePatients: Math.round(baseP),
-        qiboPatients: Math.round(qiboP),
+        basePatients: Math.round(basePatients),
+        qiboPatients: Math.round(qiboPatients),
         baseDollars: Math.round(baseW),
         qiboDollars: Math.round(qiboW),
         basePerHour: Math.round(baseW / h),
         qiboPerHour: Math.round(qiboW / h),
       };
     });
-  }, [baselinePatientsPerHour, qiboPatientsPerHour, rate]);
+  }, [summaryHours, useDemandCap, patientsPerWeek, baselinePatientsPerHour, qiboPatientsPerHour, rate]);
 
   // ---- Minimal test suite (console assertions) ----
   useEffect(() => {
     try {
       // Palette presence
       console.assert(palette && palette.accent && palette.secondary, "palette has accent & secondary");
+      // Clamp sanity
+      console.assert(clamp(5, 10, 20) === 10 && clamp(25, 10, 20) === 20 && clamp(15, 10, 20) === 15, "clamp works");
+      // QiBo auto minutes range
+      console.assert(qiboMinutesAuto >= 25 && qiboMinutesAuto <= 40, "qibo auto in [25,40]");
+      if (autoQiBo) {
+        console.assert(Math.abs(qiboMinutesEffective - qiboMinutesAuto) < 1e-9, "auto mode uses auto value");
+      }
       // Hour math
       console.assert(Math.abs((60 / 60) - 1) < 1e-9, "pph for 60 min should be 1");
       console.assert(Math.round((60 / 40) * 40) === 60, "40 min @ 40h => 60 patients");
@@ -196,18 +223,19 @@ function QiBoCalculator() {
       console.assert(minX <= Math.floor(hoursPerWeek) && maxX >= Math.ceil(hoursPerWeek), "range includes hoursAnchor");
       console.assert(minX <= Math.floor(hoursToMatchCurrent_QiBo) && maxX >= Math.ceil(hoursToMatchCurrent_QiBo), "range includes QiBo match");
       // Summary rows
-      console.assert(summaryRows.length === 4 && summaryRows.some(r=>r.hours===40), "summary rows present");
+      console.assert(summaryRows.some(r=>r.hours===25) && summaryRows.some(r=>r.hours===40) && summaryRows.some(r=>r.hours===Math.round(hoursPerWeek)), "matrix rows include 25, 40, and your hours");
       // Labels should not double the $
-      const todaysLabel = `Today's annual ${fmtMoney(currentAnnualGross)}`;
+      const todaysLabel = `Current: ${fmtMoney(currentAnnualGross)}`;
       console.assert(!todaysLabel.includes('$$'), "No double $ in today's label");
-      // eslint-disable-next-line no-console
+      // Mutual exclusivity guard
       console.assert(!(goals.seeMore && goals.workLess), "seeMore and workLess should not both be true");
+      // eslint-disable-next-line no-console
       console.log("✅ Calculator sanity tests passed");
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error("❌ Calculator tests failed", e);
     }
-  }, [palette, annualVsHoursData, revenueVsPatientsData, summaryRows, hoursPerWeek, hoursToMatchCurrent_QiBo, currentAnnualGross]);
+  }, [palette, annualVsHoursData, revenueVsPatientsData, summaryRows, hoursPerWeek, hoursToMatchCurrent_QiBo, currentAnnualGross, autoQiBo, qiboMinutesAuto, qiboMinutesEffective, goals]);
 
   return (
     <div className="min-h-screen transition-colors duration-300 dark bg-gray-900">
@@ -228,38 +256,39 @@ function QiBoCalculator() {
         {/* Input Panels */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <InputSection title="Practice Metrics" icon={<Users className="h-5 w-5" />} darkMode={darkMode}>
-            {/* Hide conflicting inputs based on goal */}
-            {!(goals.seeMore && !goals.workLess) && (
-              <InputField label="Patients per week" value={patientsPerWeek} onChange={handleChange("patientsPerWeek")} darkMode={darkMode} icon={<Users className="h-4 w-4" />} />
-            )}
-            {!(goals.workLess && !goals.seeMore) && (
-              <InputField label="Working hours per week" value={hoursPerWeek} onChange={handleChange("hoursPerWeek")} darkMode={darkMode} icon={<Clock className="h-4 w-4" />} />
-            )}
+            {/* Always visible per your request */}
+            <InputField label="Patients per week" value={patientsPerWeek} onChange={handleChange("patientsPerWeek")} darkMode={darkMode} icon={<Users className="h-4 w-4" />} />
+            <InputField label="Working hours per week" value={hoursPerWeek} onChange={handleChange("hoursPerWeek")} darkMode={darkMode} icon={<Clock className="h-4 w-4" />} />
             <InputField label="Rate per treatment ($)" value={rate} onChange={handleChange("rate")} darkMode={darkMode} icon={<DollarSign className="h-4 w-4" />} />
           </InputSection>
 
           <InputSection title="Documentation Time" icon={<Clock className="h-5 w-5" />} darkMode={darkMode}>
             <InputField label="Current minutes per patient" value={baselineMinutes} onChange={handleChange("baselineMinutes")} darkMode={darkMode} sublabel="Traditional documentation" />
-            <InputField label="With QiBo minutes per patient" value={qiboMinutes} onChange={handleChange("qiboMinutes")} darkMode={darkMode} sublabel="AI-assisted documentation" />
+            <div className="flex items-center gap-2">
+              <input id="autoQiBo" type="checkbox" checked={autoQiBo} onChange={() => setAutoQiBo(v=>!v)} className="h-4 w-4 accent-emerald-500" />
+              <label htmlFor="autoQiBo" className={`text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                Auto-calculate based on the "QiBo Effect"
+              </label>
+            </div>
+            <InputField 
+              label="With QiBo minutes per patient" 
+              value={Math.round(qiboMinutesEffective)} 
+              onChange={handleChange("qiboMinutes")} 
+              darkMode={darkMode}
+              sublabel={autoQiBo ? `Auto: based on ${baselineMinutes} min` : "Manual override"}
+              disabled={autoQiBo}
+            />
             <div className="p-3 rounded-lg bg-green-900/30">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-green-400" />
-                <span className="text-sm font-medium text-green-400">{(baselineMinutes / Math.max(1, qiboMinutes)).toFixed(1)}× efficiency gain</span>
+                <span className="text-sm font-medium text-green-400">{(baselineMinutes / Math.max(1, qiboMinutesEffective)).toFixed(1)}× efficiency gain</span>
               </div>
             </div>
           </InputSection>
-
-          <InputSection title="Investment" icon={<DollarSign className="h-5 w-5" />} darkMode={darkMode}>
-            <InputField label="QiBo monthly subscription ($)" value={subscription} onChange={handleChange("subscription")} darkMode={darkMode} />
-            <div className="text-xs p-3 rounded-lg bg-blue-900/30 text-blue-300">💡 Tip: Try 40 minutes (from 60) to see a typical 1.5× improvement</div>
-          </InputSection>
-        </div>
-
-        {/* Goals row */}
-        <div className="mb-8">
           <InputSection title="Your Goals" icon={<TrendingUp className="h-5 w-5" />} darkMode={darkMode}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <GoalToggle label="See more patients" checked={goals.seeMore} onChange={() => toggleGoalExclusive("seeMore")} />
+              <br/>
               <GoalToggle label="Work fewer hours" checked={goals.workLess} onChange={() => toggleGoalExclusive("workLess")} />
             </div>
             <div className="text-xs text-gray-400 mt-2">The chart adapts to your goal: X-axis is patients or hours; Y-axis shows annual dollars.</div>
@@ -295,7 +324,16 @@ function QiBoCalculator() {
               hoursSavedSameRevenue={hoursSavedSameRevenue}
             />
 
-            <ChartCard title="Baseline vs QiBo at 25/30/35/40 hours" darkMode={darkMode}>
+            <ChartCard title="Baseline vs QiBo (matrix)" darkMode={darkMode}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-gray-400">
+                  {useDemandCap ? `Using your current patients/week (${fmtNum(patientsPerWeek)})` : "Assuming full schedule (capacity)"}
+                </span>
+                <label className="flex items-center gap-2 text-xs">
+                  <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={useDemandCap} onChange={() => setUseDemandCap(v=>!v)} />
+                  <span className="text-white">Use my current demand</span>
+                </label>
+              </div>
               <ComparisonTable rows={summaryRows} />
             </ChartCard>
           </div>
@@ -330,7 +368,7 @@ function GoalToggle({ label, checked, onChange }) {
   );
 }
 
-function InputField({ label, value, onChange, darkMode, icon, sublabel }) {
+function InputField({ label, value, onChange, darkMode, icon, sublabel, disabled }) {
   return (
     <div>
       <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
@@ -343,7 +381,8 @@ function InputField({ label, value, onChange, darkMode, icon, sublabel }) {
           type="number"
           value={value}
           onChange={onChange}
-          className={`w-full ${icon ? "pl-10" : "pl-4"} pr-4 py-3 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"}`}
+          disabled={disabled}
+          className={`w-full ${icon ? "pl-10" : "pl-4"} pr-4 py-3 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
         />
       </div>
     </div>
@@ -437,8 +476,7 @@ function GoalChartCard({ mode, dataPatients, dataHours, baseCapAtAnchor, qiboCap
             />
             <YAxis tick={{ fontSize: 12, fill: "#9ca3af" }} tickFormatter={(v)=>fmtMoney(v)} />
             <Tooltip content={<SmartTooltip money darkMode={darkMode} xFormatter={(x)=>`${x} hours/week`} />} />
-            {/* Today marker (hours you work now) */}
-             {/* Horizontal line at today's annual revenue (avoid double $ by letting fmtMoney insert it) */}
+            {/* Horizontal line at today's annual revenue (avoid double $ by letting fmtMoney insert it) */}
             <ReferenceLine y={currentAnnualGross} ifOverflow="extendDomain" stroke="#93c5fd" strokeDasharray="3 3" label={{ value: `Current: ${fmtMoney(currentAnnualGross)}`, position: 'left', fill: '#93c5fd', fontSize: 12 }} />
             {/* Dynamic "same money" intersections */}
             <ReferenceLine x={hoursToMatchBaseline} ifOverflow="extendDomain" stroke="#9ca3af" strokeDasharray="2 2" label={{ value: `Baseline: ${hoursToMatchBaseline}h`, position: 'top', fill: '#9ca3af', fontSize: 12 }} />
