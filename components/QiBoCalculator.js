@@ -221,7 +221,7 @@ function QiBoCalculator() {
             <h1 className="text-4xl font-bold tracking-tight text-white">QiBo Productivity Calculator</h1>
           </div>
           <p className="text-xl max-w-3xl mx-auto text-gray-300">
-            Tell us about your practice and goals. We’ll highlight what matters: see more patients, work fewer hours, or earn more.
+            Tell us about your practice and goals. We’ll highlight what matters most: see more patients or work fewer hours.
           </p>
         </div>
 
@@ -258,10 +258,9 @@ function QiBoCalculator() {
         {/* Goals row */}
         <div className="mb-8">
           <InputSection title="Your Goals" icon={<TrendingUp className="h-5 w-5" />} darkMode={darkMode}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <GoalToggle label="See more patients" checked={goals.seeMore} onChange={() => toggleGoalExclusive("seeMore")} />
               <GoalToggle label="Work fewer hours" checked={goals.workLess} onChange={() => toggleGoalExclusive("workLess")} />
-              <GoalToggle label="Earn more" checked={goals.makeMore} onChange={() => toggleGoalExclusive("makeMore")} />
             </div>
             <div className="text-xs text-gray-400 mt-2">The chart adapts to your goal: X-axis is patients or hours; Y-axis shows annual dollars.</div>
           </InputSection>
