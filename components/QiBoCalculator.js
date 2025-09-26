@@ -369,6 +369,32 @@ function GoalToggle({ label, checked, onChange }) {
 }
 
 function InputField({ label, value, onChange, darkMode, icon, sublabel, disabled }) {
+  // Prevent the annoying "0" injection while typing by holding a local string
+  const [local, setLocal] = React.useState(String(value ?? ""));
+  React.useEffect(() => {
+    // Sync down from parent when it changes externally
+    setLocal(String(value ?? ""));
+  }, [value]);
+
+  const onLocalChange = (e) => {
+    const raw = e.target.value;
+    setLocal(raw);
+    // Only commit upstream when the string is a valid finite number
+    if (raw === "" || raw === "-" || raw === ".") return; // allow editing states
+    const num = Number(raw);
+    if (Number.isFinite(num)) {
+      // Call parent handler with a synthetic event carrying the raw numeric string
+      onChange({ target: { value: raw } });
+    }
+  };
+
+  const onLocalBlur = () => {
+    // If the user leaves it empty or partial, revert to the last good parent value
+    if (local === "" || local === "-" || local === ".") {
+      setLocal(String(value ?? ""));
+    }
+  };
+
   return (
     <div>
       <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
@@ -379,8 +405,10 @@ function InputField({ label, value, onChange, darkMode, icon, sublabel, disabled
         {icon && <div className={`absolute left-3 top-1/2 -translate-y-1/2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{icon}</div>}
         <input
           type="number"
-          value={value}
-          onChange={onChange}
+          inputMode="decimal"
+          value={local}
+          onChange={onLocalChange}
+          onBlur={onLocalBlur}
           disabled={disabled}
           className={`w-full ${icon ? "pl-10" : "pl-4"} pr-4 py-3 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
         />
